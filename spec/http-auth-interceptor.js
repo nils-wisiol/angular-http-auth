@@ -69,5 +69,72 @@ describe('http auth interceptor', function() {
     });
   
   });
+  
+  describe('loginAttempted()', function() {
+  
+    it('retries the first request and broadcasts "event:auth-loginSuccessful" if request successful', function() {
+      angular.forEach(methods, function(method) {
+        $httpBackend.expect(method, '/myresource').respond(401);
+        $http({method: method, url: '/myresource'});
+        $httpBackend.flush();
+        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginRequired', jasmine.any(Object));        
+        $scope.$broadcast.reset();
+        
+        $httpBackend.expect(method, '/myresource').respond(200);
+        authService.loginAttempted();
+        $httpBackend.flush();
+        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginSuccessful');
+      });
+    });
+  
+    angular.forEach(methods, function(method) {
+      it('retries the first request and broadcasts "event:auth-loginFailed" if request successful (' + method + ')', function() {
+        $httpBackend.expect(method, '/myresource').respond(401);
+        $http({method: method, url: '/myresource'});
+        $httpBackend.flush();
+        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginRequired', jasmine.any(Object));        
+        $scope.$broadcast.reset();
+        
+        $httpBackend.expect(method, '/myresource').respond(401);
+        authService.loginAttempted();
+        $httpBackend.flush();
+        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginFailed');
+      });
+    });
+    
+    angular.forEach(methods, function(method) {
+      xit('retries only the first requst if loginAttempted() is called and first request fails (' + method + ')', function() {
+        $httpBackend.expect(method, '/myresource1').respond(401);
+        $http({method: method, url: '/myresource1'});
+        $httpBackend.expect(method, '/myresource2').respond(401);
+        $http({method: method, url: '/myresource2'});
+        $httpBackend.flush();
+        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginRequired', jasmine.any(Object));        
+        $scope.$broadcast.reset();
+        
+        $httpBackend.expect(method, '/myresource1').respond(401);
+        authService.loginAttempted();
+        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginFailed');
+      });      
+    });
+    
+    it('retries only all requsts if loginAttempted() is called and first request succeeds', function() {
+      angular.forEach(methods, function(method) {
+        $httpBackend.expect(method, '/myresource1').respond(401);
+        $http({method: method, url: '/myresource1'});
+        $httpBackend.expect(method, '/myresource2').respond(401);
+        $http({method: method, url: '/myresource2'});
+        $httpBackend.flush();
+        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginRequired', jasmine.any(Object));        
+        $scope.$broadcast.reset();
+        
+        $httpBackend.expect(method, '/myresource1').respond(200);
+        $httpBackend.expect(method, '/myresource2').respond(200);
+        authService.loginAttempted();
+        $httpBackend.flush();
+        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginSuccessful');
+      });      
+    });    
+  });
 
 });

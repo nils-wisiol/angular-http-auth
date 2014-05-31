@@ -23,6 +23,34 @@
         $rootScope.$broadcast('event:auth-loginConfirmed', data);
         httpBuffer.retryAll(updater);
       },
+      
+      /**
+       * Call this function to indicate that you configured $http to provide an HTTP
+       * Authentication header and trigger a retry of all deferred requests.
+       * The first request will be retried: if it goes through, first
+       * event:auth-loginSuccessful will be broadcast and then all other requests will 
+       * be retried. If it fails, event:auth-loginFailed will be broadcast and all 
+       * requests, including the first one, will be held in the buffer.
+       * If any later request in the buffer fails, no special action will be taken, that
+       * is, on 401 the whole process starts from the beginning, or on any other status
+       * they just plain fail.
+       */
+      loginAttempted: function() {
+        function onSuccess() {
+          // broadcast event
+          $rootScope.$broadcast('event:auth-loginSuccessful');
+          // retry all other requets
+          httpBuffer.removeFirst();
+          httpBuffer.retryAll(function(config) {return config;});
+        }
+        
+        function onError() {
+          // broadcast event
+          $rootScope.$broadcast('event:auth-loginFailed');
+        }
+        
+        return httpBuffer.retryFirst().then(onSuccess, onError);
+      },
 
       /**
        * Call this function to indicate that authentication should not proceed.
@@ -113,6 +141,23 @@
           retryHttpRequest(updater(buffer[i].config), buffer[i].deferred);
         }
         buffer = [];
+      },
+      
+      /**
+       * Reties the first deferred request and returns the promise.
+       */
+      retryFirst: function() {
+        var config = angular.copy(buffer[0].config);
+        config.ignoreAuthModule = true;
+        retryHttpRequest(config, buffer[0].deferred);
+        return buffer[0].deferred.promise;
+      },
+      
+      /**
+       * Removes the first request from the buffer.
+       */
+      removeFirst: function() {
+        buffer = buffer.splice(1);
       }
     };
   }]);
