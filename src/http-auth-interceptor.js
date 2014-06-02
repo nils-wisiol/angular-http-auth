@@ -10,7 +10,7 @@
 
   angular.module('http-auth-interceptor', ['http-auth-interceptor-buffer'])
 
-  .factory('authService', ['$rootScope','httpBuffer', function($rootScope, httpBuffer) {
+  .factory('authService', ['$rootScope','$q','httpBuffer', function($rootScope, $q, httpBuffer) {
     return {
       /**
        * Call this function to indicate that authentication was successfull and trigger a
@@ -34,8 +34,15 @@
        * If any later request in the buffer fails, no special action will be taken, that
        * is, on 401 the whole process starts from the beginning, or on any other status
        * they just plain fail.
+       * If there is no pending request in the queue, this function will behave like
+       * loginConfirmed().
        */
       loginAttempted: function() {
+        if (httpBuffer.getLength() == 0) {
+          this.loginConfirmed();
+          return;
+        }
+      
         function onSuccess() {
           // broadcast event
           $rootScope.$broadcast('event:auth-loginSuccessful');
@@ -49,7 +56,7 @@
           $rootScope.$broadcast('event:auth-loginFailed');
         }
         
-        return httpBuffer.retryFirst().then(onSuccess, onError);
+        httpBuffer.retryFirst().then(onSuccess, onError);
       },
 
       /**
@@ -158,6 +165,13 @@
        */
       removeFirst: function() {
         buffer = buffer.splice(1);
+      },
+      
+      /**
+       * Returns the length of the queue
+       */
+      getLength: function() {
+        return buffer.length;
       }
     };
   }]);
