@@ -133,8 +133,12 @@ describe('http auth interceptor', function() {
         authService.loginAttempted();
         $httpBackend.flush();
         expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginSuccessful');
-      });      
+      });
     });    
+  
+    it('handles empty retry queue correctly', function() {
+      authService.loginAttempted();
+    });
   });
 
 });
