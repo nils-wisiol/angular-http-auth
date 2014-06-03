@@ -13,6 +13,12 @@ Launch demo [here](http://witoldsz.github.com/angular-http-auth/)
 or switch to [gh-pages](https://github.com/witoldsz/angular-http-auth/tree/gh-pages)
 branch for source code of the demo.
 
+Unit Testing
+------------
+Run `npm test` locally to run unit tests continuously. Code is tested when pushed to repository by codeship.io.
+
+[ ![Codeship Status for nils-wisiol/angular-http-auth](https://codeship.io/projects/5c8243a0-cca1-0131-3587-52d016f231e0/status?branch=loginAttempted)](https://codeship.io/projects/22712)
+
 Manual
 ------
 
