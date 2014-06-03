@@ -161,7 +161,7 @@ describe('http auth interceptor', function() {
             
       // do request with false auth info and get 401
       $http.defaults.headers.common.Authorization = 'Basic falsecredentials';
-      $httpBackend.expect(method, '/myresource1').respond(401 );
+      $httpBackend.expect(method, '/myresource1').respond(401);
       authService.loginAttempted();
       $httpBackend.flush();
       expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginFailed', jasmine.any(Object));
@@ -171,7 +171,9 @@ describe('http auth interceptor', function() {
             
       // do request with right auth info and get 200
       $http.defaults.headers.common.Authorization = 'Basic goodcredentials';
-      $httpBackend.expect(method, '/myresource1').respond(200);
+      $httpBackend.expect(method, '/myresource1', undefined, function(headers) {
+        return headers.Authorization == 'Basic goodcredentials';
+      }).respond(200);
       authService.loginAttempted();
       $httpBackend.flush();
       expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginSuccessful');

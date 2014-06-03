@@ -82,16 +82,19 @@
         responseError: function(rejection) {
           if (rejection.status === 401 && !rejection.config.ignoreAuthModule) {
             var deferred = $q.defer();
+            // Strip invalid authorization information from config
+            var config = angular.copy(rejection.config);
+            if (config.headers) delete config.headers.Authorization;
             if (rejection.config.authModuleInsertFirst) {
               // This is a response to an login attempt, and login failed
               // Put request in front of queue
-              httpBuffer.prefix(rejection.config, deferred);
+              httpBuffer.prefix(config, deferred);
               // Broadcast login failed event
               $rootScope.$broadcast('event:auth-loginFailed', rejection);
             } else {
               // This is not an login attempt in the sense of loginAttempted()
               // Put request at the end of queue
-              httpBuffer.append(rejection.config, deferred);
+              httpBuffer.append(config, deferred);
               // Broadcast login required event
               $rootScope.$broadcast('event:auth-loginRequired', rejection);
             }
