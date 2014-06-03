@@ -47,11 +47,10 @@
           // broadcast event
           $rootScope.$broadcast('event:auth-loginSuccessful');
           // retry all other requets
-          httpBuffer.removeFirst();
           httpBuffer.retryAll(function(config) {return config;});
         }
         
-        function onError() {
+        function onError(reason) {
           // broadcast event
           $rootScope.$broadcast('event:auth-loginFailed');
         }
@@ -83,8 +82,19 @@
         responseError: function(rejection) {
           if (rejection.status === 401 && !rejection.config.ignoreAuthModule) {
             var deferred = $q.defer();
-            httpBuffer.append(rejection.config, deferred);
-            $rootScope.$broadcast('event:auth-loginRequired', rejection);
+            if (rejection.config.authModuleInsertFirst) {
+              // This is a response to an login attempt, and login failed
+              // Put request in front of queue
+              httpBuffer.prefix(rejection.config, deferred);
+              // Broadcast login failed event
+              $rootScope.$broadcast('event:auth-loginFailed', rejection);
+            } else {
+              // This is not an login attempt in the sense of loginAttempted()
+              // Put request at the end of queue
+              httpBuffer.append(rejection.config, deferred);
+              // Broadcast login required event
+              $rootScope.$broadcast('event:auth-loginRequired', rejection);
+            }
             return deferred.promise;
           }
           // otherwise, default behaviour
@@ -127,6 +137,16 @@
           deferred: deferred
         });
       },
+      
+      /**
+       * Puts HTTP request configuration object with deferred response in front of the buffer.
+       */
+      prefix: function(config, deferred) {
+        buffer.unshift({
+          config: config,
+          deferred: deferred
+        });
+      },
 
       /**
        * Abandon or reject (if reason provided) all the buffered requests.
@@ -154,17 +174,11 @@
        * Reties the first deferred request and returns the promise.
        */
       retryFirst: function() {
-        var config = angular.copy(buffer[0].config);
-        config.ignoreAuthModule = true;
-        retryHttpRequest(config, buffer[0].deferred);
-        return buffer[0].deferred.promise;
-      },
-      
-      /**
-       * Removes the first request from the buffer.
-       */
-      removeFirst: function() {
-        buffer = buffer.splice(1);
+        var request = buffer.shift();
+        var config = angular.copy(request.config);
+        config.authModuleInsertFirst = true;
+        retryHttpRequest(config, request.deferred);
+        return request.deferred.promise;
       },
       
       /**

@@ -22,6 +22,11 @@ describe('http auth interceptor', function() {
     // Spy on $emit to detect events
     spyOn($scope, '$broadcast');  
   });
+  
+   afterEach(function() {
+     $httpBackend.verifyNoOutstandingExpectation();
+     $httpBackend.verifyNoOutstandingRequest();
+   });  
 
   describe('events', function() {
   
@@ -37,6 +42,7 @@ describe('http auth interceptor', function() {
         // confirm auth
         $httpBackend.expect(method, '/myresource').respond(200);
         authService.loginConfirmed();
+        $httpBackend.flush();
         expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginConfirmed', undefined);        
       });
     });
@@ -88,7 +94,7 @@ describe('http auth interceptor', function() {
     });
   
     angular.forEach(methods, function(method) {
-      it('retries the first request and broadcasts "event:auth-loginFailed" if request successful (' + method + ')', function() {
+      it('retries the first request and broadcasts "event:auth-loginFailed" if request unsuccessful (' + method + ')', function() {
         $httpBackend.expect(method, '/myresource').respond(401);
         $http({method: method, url: '/myresource'});
         $httpBackend.flush();
@@ -98,12 +104,12 @@ describe('http auth interceptor', function() {
         $httpBackend.expect(method, '/myresource').respond(401);
         authService.loginAttempted();
         $httpBackend.flush();
-        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginFailed');
+        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginFailed', jasmine.any(Object));
       });
     });
     
     angular.forEach(methods, function(method) {
-      xit('retries only the first requst if loginAttempted() is called and first request fails (' + method + ')', function() {
+      it('retries only the first requst if loginAttempted() is called and first request fails (' + method + ')', function() {
         $httpBackend.expect(method, '/myresource1').respond(401);
         $http({method: method, url: '/myresource1'});
         $httpBackend.expect(method, '/myresource2').respond(401);
@@ -114,7 +120,8 @@ describe('http auth interceptor', function() {
         
         $httpBackend.expect(method, '/myresource1').respond(401);
         authService.loginAttempted();
-        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginFailed');
+        $httpBackend.flush();
+        expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginFailed', jasmine.any(Object));
       });      
     });
     
@@ -138,6 +145,38 @@ describe('http auth interceptor', function() {
   
     it('handles empty retry queue correctly', function() {
       authService.loginAttempted();
+    });
+    
+    it('handles failed auth attempt correctly', function() {
+      var method = 'GET';
+      
+      // do request without auth info and get 401
+      $httpBackend.expect(method, '/myresource1').respond(401);
+      $http({method: method, url: '/myresource1'});
+      $httpBackend.flush();
+      expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginRequired', jasmine.any(Object));
+      $scope.$broadcast.reset();
+      $httpBackend.resetExpectations();
+      $scope.$digest();
+            
+      // do request with false auth info and get 401
+      $http.defaults.headers.common.Authorization = 'Basic falsecredentials';
+      $httpBackend.expect(method, '/myresource1').respond(401 );
+      authService.loginAttempted();
+      $httpBackend.flush();
+      expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginFailed', jasmine.any(Object));
+      $scope.$broadcast.reset();
+      $httpBackend.resetExpectations();
+      $scope.$digest();
+            
+      // do request with right auth info and get 200
+      $http.defaults.headers.common.Authorization = 'Basic goodcredentials';
+      $httpBackend.expect(method, '/myresource1').respond(200);
+      authService.loginAttempted();
+      $httpBackend.flush();
+      expect($scope.$broadcast).toHaveBeenCalledWith('event:auth-loginSuccessful');
+      $scope.$broadcast.reset();
+      $httpBackend.resetExpectations();      
     });
   });
 
